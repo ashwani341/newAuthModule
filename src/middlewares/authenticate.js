@@ -25,7 +25,7 @@ async function authenticate(req, res, next) {
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(payload.userId);
+    const user = await User.findById(payload?.userId);
     if (!user) return res.status(403).json(new ApiError(["User not found."]));
 
     req.token = token;

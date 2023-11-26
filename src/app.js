@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const configureCors = require("./configs/corsConfig");
-const userRouter = require('./routes/user.routes')
+const userRouter = require("./routes/user.routes");
 
 const app = express();
 
@@ -27,7 +27,7 @@ app.use(
 app.use(express.static("public")); //Location of static files to be servered from the server
 //#endregion middleware setup #################################################################################################
 
-app.use('/api/v1/users', userRouter)
+app.use("/api/v1/users", userRouter);
 
 //= To ping the api  ====================================================================================================
 app.get("/test", (req, res) => {

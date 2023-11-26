@@ -4,6 +4,9 @@ const {
   registerUser,
   loginUser,
   logoutUser,
+  verifyUser,
+  sendPasswordResetEmail,
+  resetPassword,
 } = require("../controllers/user.controller");
 const {
   emailValidationChain,
@@ -12,6 +15,7 @@ const {
 } = require("../validations/validChains");
 const { authenticate } = require("../middlewares/authenticate");
 
+//#region routes ==================================================
 router.post(
   "/register",
   body("firstName").trim().notEmpty().withMessage("First name is required."),
@@ -22,8 +26,24 @@ router.post(
   registerUser
 );
 
+router.get("/verify", authenticate, verifyUser);
+
 router.post("/login", loginUser);
 
 router.get("/logout", authenticate, logoutUser);
+
+router.post(
+  "/password/reset/sendEmail",
+  emailValidationChain(),
+  sendPasswordResetEmail
+);
+router.post(
+  "/password/reset",
+  passwordValidationChain(),
+  authenticate,
+  resetPassword
+);
+
+//#endregion routes ===============================================
 
 module.exports = router;
