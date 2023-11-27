@@ -1,0 +1,326 @@
+{
+	"info": {
+		"_postman_id": "ff0515bc-5fed-415a-943c-83d0badd4b59",
+		"name": "cdac-unicef",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "6327899"
+	},
+	"item": [
+		{
+			"name": "/users",
+			"item": [
+				{
+					"name": "/mobile",
+					"item": [
+						{
+							"name": "/sendOTP",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"mobileNo\": 8126400277\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{backend_uri}}/api/v1/users/mobile/sendOTP",
+									"host": [
+										"{{backend_uri}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"users",
+										"mobile",
+										"sendOTP"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "/verify",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"mobileNo\": 8126400277,\r\n    \"otp\": 123456\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{backend_uri}}/api/v1/users/mobile/verify",
+									"host": [
+										"{{backend_uri}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"users",
+										"mobile",
+										"verify"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "/register",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"firstName\": \"Ashwani\",\r\n    \"lastName\": \"Kumar\",\r\n    \"mobileNo\": 9512497984,\r\n    \"email\": \"ashwani341711@gmail.com\",\r\n    \"password\": \"@$Hwani@123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_uri}}/api/v1/users/register",
+							"host": [
+								"{{backend_uri}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"ashwani341711@gmail.com\",\r\n    \"password\": \"@$Hwani@123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_uri}}/api/v1/users/login",
+							"host": [
+								"{{backend_uri}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/logout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NTY0Mzc1MDU4ZmEzZTZkMTMwMjIyODgiLCJpYXQiOjE3MDEwNjY2MDYsImV4cCI6MTcwMTE1MzAwNn0.yEwHvGcnKMZfQweNjdbcLLMHA14WaOxMEbIGN0EYAT4",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{backend_uri}}/api/v1/users/logout",
+							"host": [
+								"{{backend_uri}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/verify",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NTYzNzY4Y2YxYmJlNTY1NTkwMDYyZjciLCJpYXQiOjE3MDEwMTcyMjgsImV4cCI6MTcwMTEwMzYyOH0.b3lkOiTKVVd4uBVpghM58L7H8ZQAYwICF6xaUeZLu-A",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{backend_uri}}/api/v1/users/verify",
+							"host": [
+								"{{backend_uri}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"verify"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/password/reset/sendEmail",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"ashwani341711@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_uri}}/api/v1/users/password/reset/sendEmail",
+							"host": [
+								"{{backend_uri}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"password",
+								"reset",
+								"sendEmail"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/password/reset",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NTYzNzY4Y2YxYmJlNTY1NTkwMDYyZjciLCJpYXQiOjE3MDEwNjUyNjEsImV4cCI6MTcwMTE1MTY2MX0.GEMuYj5XGP5nW1Uth6Qm6l21_BWGHXpj6e9hG9wdkL4",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"password\": \"@$Hwani@1234\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_uri}}/api/v1/users/password/reset",
+							"host": [
+								"{{backend_uri}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"password",
+								"reset"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/mobile/update",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NTY0OGU4ZTU3NWJmOTFiNWM2ZTcyOWYiLCJpYXQiOjE3MDEwODg5MTAsImV4cCI6MTcwMTE3NTMxMH0.0T07mnvIvbEI8DGOyCTZIh4CPa8YG3z1H6uh-HC2puQ",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"firstName\": \"Soorya\",\r\n    \"lastName\": \"Pratap\"\r\n    // \"email\": \"sp@example.com\" //Optional\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backend_uri}}/api/v1/users/mobile/update",
+							"host": [
+								"{{backend_uri}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"mobile",
+								"update"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "ping",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{backend_uri}}/test",
+					"host": [
+						"{{backend_uri}}"
+					],
+					"path": [
+						"test"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
