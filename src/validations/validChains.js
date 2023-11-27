@@ -12,13 +12,6 @@ const passwordValidationChain = () =>
     .withMessage(
       "Password must be atleast 8 characters long and must contain 1 special character, 1 capital letter and 1 number."
     );
-const newPasswordValidationChain = () =>
-  body("newPassword")
-    .trim()
-    .isStrongPassword()
-    .withMessage(
-      "Password must be atleast 8 characters long and must contain 1 special character, 1 capital letter and 1 number."
-    );
 
 const mobileNoValidationChain = () =>
   body("mobileNo")
@@ -29,6 +22,5 @@ const mobileNoValidationChain = () =>
 module.exports = {
   emailValidationChain,
   passwordValidationChain,
-  newPasswordValidationChain,
   mobileNoValidationChain,
 };

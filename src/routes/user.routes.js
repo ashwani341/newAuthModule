@@ -7,6 +7,9 @@ const {
   verifyUser,
   sendPasswordResetEmail,
   resetPassword,
+  sendOtp,
+  verifyOTPAndRegisterMobileUser,
+  updateMobileUser,
 } = require("../controllers/user.controller");
 const {
   emailValidationChain,
@@ -42,6 +45,23 @@ router.post(
   passwordValidationChain(),
   authenticate,
   resetPassword
+);
+
+router.post("/mobile/sendOTP", mobileNoValidationChain(), sendOtp);
+
+router.post(
+  "/mobile/verify",
+  mobileNoValidationChain(),
+  verifyOTPAndRegisterMobileUser
+);
+
+router.put(
+  "/mobile/update",
+  body("firstName").trim().notEmpty().withMessage("First name is required."),
+  body("lastName").trim().notEmpty().withMessage("Last name is required."),
+  body("email").trim().optional().isEmail().withMessage("Invalid email."),
+  authenticate,
+  updateMobileUser
 );
 
 //#endregion routes ===============================================

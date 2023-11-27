@@ -11,9 +11,9 @@ connectDB()
       console.log("Error occured while starting the server:\n", err);
     });
 
-    app.listen(process.env.PORT, () => {
+    app.listen(process.env.PORT, async () => {
+      await createRolesInDB();
       console.log(`🔆 Server is running at ${process.env.PORT}`);
-      createRolesInDB();
     });
   })
   .catch((err) => {

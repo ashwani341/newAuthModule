@@ -3,18 +3,21 @@ const userSchema = mongoose.Schema(
   {
     firstName: {
       type: String,
+      default: null,
     },
     lastName: {
       type: String,
+      default: null,
     },
     email: {
       type: String,
-      required: [true, "Email is required."],
+      // required: [true, "Email is required."],
       unique: true,
     },
     password: {
       type: String,
-      required: [true, "Password is required."],
+      // required: [true, "Password is required."],
+      default: null,
     },
     mobileNo: {
       type: Number,

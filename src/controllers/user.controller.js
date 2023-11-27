@@ -14,6 +14,9 @@ const {
   REFRESH_TOKEN_AGE,
 } = require("../constants/constants");
 const PasswordResetTokenModel = require("../models/PasswordResetToken.model");
+const { generateOTP } = require("../utils/generateOTP");
+const { sendOTP } = require("../configs/twillioSMS");
+const OTPModel = require("../models/OTP.model");
 
 async function registerUser(req, res) {
   try {
@@ -30,6 +33,11 @@ async function registerUser(req, res) {
 
     //= assigning default role 'USER' to newUSer ====================================================================================================
     const userRoleId = await getUserRoleId();
+    console.log(
+      "🚀 ~ file: user.controller.js:33 ~ registerUser ~ userRoleId:",
+      userRoleId
+    );
+    if (!userRoleId) throw new Error("Role ID not found.");
     const roles = [userRoleId];
     const lastLogin = Date.now();
 
@@ -215,6 +223,10 @@ async function sendPasswordResetEmail(req, res) {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json(new ApiError(["User not found."]));
 
+    // == Check if user is "local" not "mobile" or "google"  ==================================================
+    if (user.provider !== "local")
+      return res.status(403).json(new ApiError(["Forbidden!"]));
+
     // == Check if user is verified? ==================================================
     if (!user.isVerified)
       return res
@@ -222,18 +234,18 @@ async function sendPasswordResetEmail(req, res) {
         .json(new ApiError(["User email is not verified."]));
 
     // == Send password reset link ==================================================
-    // const emailInfo = await sendPasswordVerificationMail(user);
-    // if (!emailInfo) {
-    //   const deletedTokenDoc = await PasswordResetTokenModel.findOne({
-    //     email: user.email,
-    //   });
-    //   console.log(
-    //     "🚀 ~ file: user.controller.js:230 ~ sendPasswordResetEmail ~ deletedTokenDoc:",
-    //     deletedTokenDoc
-    //   );
-    //   throw new Error("Error occured while sending verification email.");
-    // }
-    // console.log(`Password Reset email sent. ID: ${emailInfo.messageId}`);
+    const emailInfo = await sendPasswordVerificationMail(user);
+    if (!emailInfo) {
+      const deletedTokenDoc = await PasswordResetTokenModel.findOne({
+        email: user.email,
+      });
+      console.log(
+        "🚀 ~ file: user.controller.js:230 ~ sendPasswordResetEmail ~ deletedTokenDoc:",
+        deletedTokenDoc
+      );
+      throw new Error("Error occured while sending verification email.");
+    }
+    console.log(`Password Reset email sent. ID: ${emailInfo.messageId}`);
 
     // return res.sendStatus(200);
     return res
@@ -256,7 +268,6 @@ async function resetPassword(req, res) {
 
     // == Extracting user and token after authentication ==================================================
     const user = req.user;
-    const passwordResetToken = req.token;
 
     // == Check if user is verified? ==================================================
     if (!user.isVerified)
@@ -299,6 +310,199 @@ async function resetPassword(req, res) {
   }
 }
 
+async function sendOtp(req, res) {
+  try {
+    //#region handling errors from express-validator ####################################################################################################
+    const valRes = validationResult(req);
+    const errorMessages = valRes.errors.map((element) => element.msg);
+    if (errorMessages.length)
+      return res.status(400).json(new ApiError(errorMessages));
+    //#endregion handling errors from express-validator #################################################################################################
+
+    // == Generate an OTP ==================================================
+    const OTP = generateOTP();
+
+    // == Update the OTP in the DB ==================================================
+    let otpDoc = await OTPModel.findOneAndUpdate(
+      { mobileNo: req.body.mobileNo },
+      { otp: OTP },
+      { new: true }
+    );
+
+    // == if no previous record then create the new one  ==================================================
+    if (!otpDoc)
+      otpDoc = await OTPModel.create({
+        mobileNo: req.body.mobileNo,
+        otp: OTP,
+      });
+    console.log(
+      "🚀 ~ file: user.controller.js:335 ~ sendOtp ~ otpDoc:",
+      otpDoc
+    );
+
+    // == Send OTP ==================================================
+    // const msgInfo = await sendOTP(req.body.mobileNo, OTP);
+    // if (!msgInfo) throw new Error("Something went worng while sending OTP.");
+    // console.log(
+    //   "🚀 ~ file: user.controller.js:341 ~ sendOtp ~ msgInfo:",
+    //   msgInfo
+    // );
+
+    // return res.sendStatus(200);
+    return res
+      .status(200)
+      .json(new ApiResponse(null, "OTP sent successfully!"));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json(new ApiError([error.message]));
+  }
+}
+
+async function verifyOTPAndRegisterMobileUser(req, res) {
+  try {
+    //#region handling errors from express-validator ####################################################################################################
+    const valRes = validationResult(req);
+    const errorMessages = valRes.errors.map((element) => element.msg);
+    if (errorMessages.length)
+      return res.status(400).json(new ApiError(errorMessages));
+    //#endregion handling errors from express-validator #################################################################################################
+    // return res.sendStatus(200);
+
+    // == Check if the otp is present in the DB? ==================================================
+    const otpDoc = await OTPModel.findOne({ mobileNo: req.body.mobileNo });
+    if (!otpDoc)
+      return res
+        .status(500)
+        .json(new ApiError(["OTP not found for this mobile no."]));
+
+    // == Check if the otp comming from the req is equal to the stored one? ==================================================
+    if (parseInt(req.body.otp) !== otpDoc.otp)
+      return res.status(500).json(new ApiError(["OTP verification failed."]));
+
+    // == If everythig is good delete the otp entry ==================================================
+    await OTPModel.findOneAndDelete({ mobileNo: req.body.mobileNo });
+
+    // == Check if the mobile no. already in the DB ==================================================
+    let user = await User.findOne({ mobileNo: req.body.mobileNo });
+    if (user && user.provider !== "mobile")
+      return res
+        .status(400)
+        .json(new ApiError(["Mobile no. already registered."]));
+
+    if (!user) {
+      //= Create a default role 'USER' for new user ====================================================================================================
+      const userRoleId = await getUserRoleId();
+      if (!userRoleId) throw new Error("Role ID not found.");
+      const roles = [userRoleId];
+
+      //= Store the new user in DB ====================================================================================================
+      user = await User.create({
+        mobileNo: req.body.mobileNo,
+        roles,
+        isVerified: true,
+        lastLogin: Date.now(),
+        provider: "mobile",
+      });
+
+      //= generate a refresh token ====================================================================================================
+      const refreshToken = generateToken(
+        { userId: user.id },
+        { expiresIn: REFRESH_TOKEN_AGE }
+      );
+
+      //= updating the refreshToken of the user in the DB ====================================================================================================
+      user = await User.findByIdAndUpdate(
+        user.id,
+        {
+          refreshToken,
+        },
+        {
+          new: true,
+        }
+      );
+    }
+
+    //= generate an access token ====================================================================================================
+    const newAccessToken = generateToken(
+      { userId: user.id },
+      { expiresIn: ACCESS_TOKEN_AGE }
+    );
+
+    //= Add new access token into user's accessTokens[] ====================================================================================================
+    user.accessTokens.push(newAccessToken);
+
+    //= updating accessTokens of the user in the DB ====================================================================================================
+    user = await User.findByIdAndUpdate(
+      user.id,
+      {
+        accessTokens: user.accessTokens,
+        lastLogin: Date.now(),
+      },
+      {
+        new: true,
+      }
+    );
+
+    const userRes = {
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.email || "",
+      roles: user.roles,
+      accessToken: newAccessToken,
+      refreshToken: user.refreshToken,
+      isVerified: user.isVerified,
+      isEnabled: user.isEnabled,
+      provider: user.provider,
+      lastLogin: user.lastLogin,
+    };
+
+    return res
+      .status(200)
+      .json(new ApiResponse(userRes, "OTP verification succussfull."));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json(new ApiError([error.message]));
+  }
+}
+
+async function updateMobileUser(req, res) {
+  try {
+    //#region handling errors from express-validator ####################################################################################################
+    const valRes = validationResult(req);
+    const errorMessages = valRes.errors.map((element) => element.msg);
+    if (errorMessages.length)
+      return res.status(400).json(new ApiError(errorMessages));
+    //#endregion handling errors from express-validator #################################################################################################
+
+    // == Extract authenticated user ==================================================
+    let user = req.user;
+
+    // == Check if the user is mobile user? ==================================================
+    if (user.provider !== "mobile")
+      return res.status(401).json(new ApiError(["Unauthorized!"]));
+
+    // == Update firstName and lastName of the mobile user ==================================================
+    user = await User.findByIdAndUpdate(
+      { _id: user.id },
+      {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body?.email,
+      },
+      { new: true }
+    );
+    if (!user) return res.status(400).json(new ApiError(["User not found."]));
+
+    // return res.sendStatus(200);
+    return res
+      .status(200)
+      .json(new ApiResponse(null, "User updated successfully."));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json(new ApiError([error.message]));
+  }
+}
+
 module.exports = {
   registerUser,
   verifyUser,
@@ -306,4 +510,7 @@ module.exports = {
   logoutUser,
   sendPasswordResetEmail,
   resetPassword,
+  sendOtp,
+  verifyOTPAndRegisterMobileUser,
+  updateMobileUser,
 };

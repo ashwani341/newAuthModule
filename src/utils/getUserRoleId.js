@@ -10,6 +10,7 @@ async function getUserRoleId() {
     return userRole[0].id;
   } catch (error) {
     console.log(error.message);
+    return;
   }
 }
 
