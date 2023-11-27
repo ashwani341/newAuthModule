@@ -18,6 +18,8 @@ const { generateOTP } = require("../utils/generateOTP");
 const { sendOTP } = require("../configs/twillioSMS");
 const OTPModel = require("../models/OTP.model");
 
+
+
 async function registerUser(req, res) {
   try {
     //#region handling errors from express-validator ####################################################################################################
