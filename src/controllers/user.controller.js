@@ -17,8 +17,7 @@ const PasswordResetTokenModel = require("../models/PasswordResetToken.model");
 const { generateOTP } = require("../utils/generateOTP");
 const { sendOTP } = require("../configs/twillioSMS");
 const OTPModel = require("../models/OTP.model");
-
-
+const { default: axios } = require("axios");
 
 async function registerUser(req, res) {
   try {
@@ -343,12 +342,12 @@ async function sendOtp(req, res) {
     );
 
     // == Send OTP ==================================================
-    // const msgInfo = await sendOTP(req.body.mobileNo, OTP);
-    // if (!msgInfo) throw new Error("Something went worng while sending OTP.");
-    // console.log(
-    //   "🚀 ~ file: user.controller.js:341 ~ sendOtp ~ msgInfo:",
-    //   msgInfo
-    // );
+    const msgInfo = await sendOTP(req.body.mobileNo, OTP);
+    if (!msgInfo) throw new Error("Something went worng while sending OTP.");
+    console.log(
+      "🚀 ~ file: user.controller.js:341 ~ sendOtp ~ msgInfo:",
+      msgInfo
+    );
 
     // return res.sendStatus(200);
     return res
@@ -505,6 +504,143 @@ async function updateMobileUser(req, res) {
   }
 }
 
+async function handleGoogleCallback(req, res) {
+  try {
+    //#region handling errors from express-validator ####################################################################################################
+    const valRes = validationResult(req);
+    const errorMessages = valRes.errors.map((element) => element.msg);
+    if (errorMessages.length)
+      return res.status(400).json(new ApiError(errorMessages));
+    //#endregion handling errors from express-validator #################################################################################################
+
+    //#region fetch user from google api ####################################################################################################
+    const code = req.query.code;
+
+    // Exchange the code for an access token
+    const redirectUri = `http://localhost:${process.env.PORT}/api/v1/users/google/callback`;
+    const tokenParams = {
+      code: code,
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code",
+    };
+
+    const tokenResponse = await axios.post(
+      "https://accounts.google.com/o/oauth2/token",
+      null,
+      {
+        params: tokenParams,
+      }
+    );
+    const accessToken = tokenResponse.data.access_token;
+
+    // Use the access token to get user information
+    const userInfoResponse = await axios.get(
+      "https://www.googleapis.com/oauth2/v1/userinfo",
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+
+    const googleUser = userInfoResponse.data;
+    //#endregion fetch user from google api #################################################################################################
+
+    //= check if the user already exists in DB? ====================================================================================================
+    let user = await User.findOne({ email: googleUser.email });
+
+    if (user && user.provider === "local")
+      return res.status(403).json(new ApiError(["Email already registered."]));
+
+    //= If user is not there in the DB the add ==================================================
+    if (!user) {
+      //= assigning default role 'USER' to newUSer ====================================================================================================
+      const userRoleId = await getUserRoleId();
+      console.log(
+        "🚀 ~ file: user.controller.js:33 ~ registerUser ~ userRoleId:",
+        userRoleId
+      );
+      if (!userRoleId) throw new Error("Role ID not found.");
+      const roles = [userRoleId];
+      const lastLogin = Date.now();
+
+      user = await User.create({
+        firstName: googleUser?.given_name || "",
+        lastName: googleUser?.family_name || "",
+        email: googleUser?.email || "",
+        roles,
+        isVerified: true,
+        lastLogin,
+        provider: "google",
+      });
+
+      //= generate a refresh token ====================================================================================================
+      const refreshToken = generateToken(
+        { userId: user.id },
+        { expiresIn: REFRESH_TOKEN_AGE }
+      );
+
+      //= updating the refreshToken of the user in the DB ====================================================================================================
+      user = await User.findByIdAndUpdate(
+        user.id,
+        {
+          refreshToken,
+        },
+        {
+          new: true,
+        }
+      );
+    }
+
+    //= Check if the user email is verified? ====================================================================================================
+    if (!user.isVerified)
+      return res
+        .status(401)
+        .json(new ApiError([`Kindly verify your email first.`]));
+
+    //= generate an access token ====================================================================================================
+    const newAccessToken = generateToken(
+      { userId: user.id },
+      { expiresIn: ACCESS_TOKEN_AGE }
+    );
+
+    //= Add new access token into user's accessTokens[] ====================================================================================================
+    user.accessTokens.push(newAccessToken);
+
+    //= updating accessTokens of the user in the DB ====================================================================================================
+    user = await User.findByIdAndUpdate(
+      user.id,
+      {
+        accessTokens: user.accessTokens,
+        lastLogin: Date.now(),
+      },
+      {
+        new: true,
+      }
+    );
+
+    const userRes = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      roles: user.roles,
+      accessToken: newAccessToken,
+      refreshToken: user.refreshToken,
+      isVerified: user.isVerified,
+      isEnabled: user.isEnabled,
+      provider: user.provider,
+      lastLogin: user.lastLogin,
+    };
+
+    return res
+      .status(200)
+      .json(new ApiResponse(userRes, "User authorization successfull."));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json(new ApiError([error.message]));
+  }
+}
+
 module.exports = {
   registerUser,
   verifyUser,
@@ -515,4 +651,5 @@ module.exports = {
   sendOtp,
   verifyOTPAndRegisterMobileUser,
   updateMobileUser,
+  handleGoogleCallback,
 };
