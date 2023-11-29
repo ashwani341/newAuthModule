@@ -11,6 +11,8 @@ const {
   verifyOTPAndRegisterMobileUser,
   updateMobileUser,
   handleGoogleCallback,
+  handleRefreshToken,
+  sendUserDetails,
 } = require("../controllers/user.controller");
 const {
   emailValidationChain,
@@ -74,6 +76,12 @@ router.get("/google", (req, res) => {
 });
 
 router.get("/google/callback", handleGoogleCallback);
+
+router.get("/token/refresh", handleRefreshToken)
+
+//#region user routes ====================================================================================================
+router.get("/", authenticate, sendUserDetails)
+//#endregion user routes =================================================================================================
 //#endregion routes ===============================================
 
 module.exports = router;

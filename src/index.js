@@ -1,6 +1,6 @@
-const { app } = require("./app");
-const { connectDB } = require("./db/connectDB");
 require("dotenv").config();
+const { connectDB } = require("./db/connectDB");
+const { app } = require("./app");
 const { createRolesInDB } = require("./utils/createRolesInDB");
 
 connectDB()

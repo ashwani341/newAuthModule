@@ -1,14 +1,16 @@
-const accountSid = "ACfb018904a00617c26d3c81934566aece";
-const authToken = "054f422df7ba1fe5dca29390b3b4f704";
-const client = require("twilio")(accountSid, authToken);
+const client = require("twilio")(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+); //Shashi bro's account
 
 async function sendOTP(to, otp) {
   try {
     const msg = await client.messages.create({
       body: `Your OTP is ${otp} `,
-      from: "+13613065613",
+      // from: "+14694164781",
+      from: "+14242553721",
       //   to: "+919404252467",
-      to: to,
+      to: `+91${to}`,
     });
 
     return msg;

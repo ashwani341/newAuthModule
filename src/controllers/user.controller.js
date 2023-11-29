@@ -18,6 +18,7 @@ const { generateOTP } = require("../utils/generateOTP");
 const { sendOTP } = require("../configs/twillioSMS");
 const OTPModel = require("../models/OTP.model");
 const { default: axios } = require("axios");
+const jwt = require("jsonwebtoken");
 
 async function registerUser(req, res) {
   try {
@@ -30,7 +31,15 @@ async function registerUser(req, res) {
 
     let userExists = await User.findOne({ email: req.body.email });
     if (userExists)
-      return res.status(400).json(new ApiError(["User already exists."]));
+      return res.status(400).json(new ApiError(["Email already registered."]));
+
+    const mobileUserExists = await User.findOne({
+      mobileNo: req.body?.mobileNo,
+    });
+    if (mobileUserExists)
+      return res
+        .status(400)
+        .json(new ApiError(["Mobile no. already registered."]));
 
     //= assigning default role 'USER' to newUSer ====================================================================================================
     const userRoleId = await getUserRoleId();
@@ -55,27 +64,6 @@ async function registerUser(req, res) {
       roles,
       lastLogin,
     });
-
-    //= generate a refresh token ====================================================================================================
-    const refreshToken = generateToken(
-      { userId: user.id },
-      { expiresIn: REFRESH_TOKEN_AGE }
-    );
-
-    //= updating the refreshToken of the user in the DB ====================================================================================================
-    user = await User.findByIdAndUpdate(
-      user.id,
-      {
-        refreshToken,
-      },
-      {
-        new: true,
-      }
-    );
-    console.log(
-      "🚀 ~ file: user.controller.js:59 ~ registerUser ~ user:",
-      user
-    );
 
     //= send verification email ====================================================================================================
     // const emailInfo = await sendVerificationEmail(user); // checked: working
@@ -144,11 +132,20 @@ async function loginUser(req, res) {
     //= Add new access token into user's accessTokens[] ====================================================================================================
     user.accessTokens.push(newAccessToken);
 
-    //= updating accessTokens of the user in the DB ====================================================================================================
+    //= if user is loging in first time the there will be no refresh token ==================================================
+    if (!user?.refreshToken) {
+      user.refreshToken = generateToken(
+        { userId: user.id },
+        { expiresIn: REFRESH_TOKEN_AGE }
+      );
+    }
+
+    //= updating accessTokens and refreshToken of the user in the DB ====================================================================================================
     user = await User.findByIdAndUpdate(
       user.id,
       {
         accessTokens: user.accessTokens,
+        refreshToken: user.refreshToken,
         lastLogin: Date.now(),
       },
       {
@@ -404,23 +401,6 @@ async function verifyOTPAndRegisterMobileUser(req, res) {
         lastLogin: Date.now(),
         provider: "mobile",
       });
-
-      //= generate a refresh token ====================================================================================================
-      const refreshToken = generateToken(
-        { userId: user.id },
-        { expiresIn: REFRESH_TOKEN_AGE }
-      );
-
-      //= updating the refreshToken of the user in the DB ====================================================================================================
-      user = await User.findByIdAndUpdate(
-        user.id,
-        {
-          refreshToken,
-        },
-        {
-          new: true,
-        }
-      );
     }
 
     //= generate an access token ====================================================================================================
@@ -432,11 +412,20 @@ async function verifyOTPAndRegisterMobileUser(req, res) {
     //= Add new access token into user's accessTokens[] ====================================================================================================
     user.accessTokens.push(newAccessToken);
 
-    //= updating accessTokens of the user in the DB ====================================================================================================
+    //= if user is loging in first time the there will be no refresh token ==================================================
+    if (!user?.refreshToken) {
+      user.refreshToken = generateToken(
+        { userId: user.id },
+        { expiresIn: REFRESH_TOKEN_AGE }
+      );
+    }
+
+    //= updating accessTokens and refreshToken of the user in the DB ====================================================================================================
     user = await User.findByIdAndUpdate(
       user.id,
       {
         accessTokens: user.accessTokens,
+        refreshToken: user.refreshToken,
         lastLogin: Date.now(),
       },
       {
@@ -549,7 +538,7 @@ async function handleGoogleCallback(req, res) {
     //= check if the user already exists in DB? ====================================================================================================
     let user = await User.findOne({ email: googleUser.email });
 
-    if (user && user.provider === "local")
+    if (user && user.provider !== "google")
       return res.status(403).json(new ApiError(["Email already registered."]));
 
     //= If user is not there in the DB the add ==================================================
@@ -573,23 +562,6 @@ async function handleGoogleCallback(req, res) {
         lastLogin,
         provider: "google",
       });
-
-      //= generate a refresh token ====================================================================================================
-      const refreshToken = generateToken(
-        { userId: user.id },
-        { expiresIn: REFRESH_TOKEN_AGE }
-      );
-
-      //= updating the refreshToken of the user in the DB ====================================================================================================
-      user = await User.findByIdAndUpdate(
-        user.id,
-        {
-          refreshToken,
-        },
-        {
-          new: true,
-        }
-      );
     }
 
     //= Check if the user email is verified? ====================================================================================================
@@ -607,11 +579,20 @@ async function handleGoogleCallback(req, res) {
     //= Add new access token into user's accessTokens[] ====================================================================================================
     user.accessTokens.push(newAccessToken);
 
-    //= updating accessTokens of the user in the DB ====================================================================================================
+    //= if user is loging in first time the there will be no refresh token ==================================================
+    if (!user?.refreshToken) {
+      user.refreshToken = generateToken(
+        { userId: user.id },
+        { expiresIn: REFRESH_TOKEN_AGE }
+      );
+    }
+
+    //= updating accessTokens and refreshToken of the user in the DB ====================================================================================================
     user = await User.findByIdAndUpdate(
       user.id,
       {
         accessTokens: user.accessTokens,
+        refreshToken: user.refreshToken,
         lastLogin: Date.now(),
       },
       {
@@ -641,6 +622,142 @@ async function handleGoogleCallback(req, res) {
   }
 }
 
+async function handleRefreshToken(req, res) {
+  //= Extract tokens from req headers ==================================================
+  const accessToken = req.headers?.accesstoken;
+  const refreshToken = req.headers?.refreshtoken;
+
+  //= If any one of them is not found? :send error ==================================================
+  if (!accessToken || !refreshToken)
+    return res.status(400).json(new ApiError([`Headers not found.`]));
+
+  try {
+    //= Verify refresh token ==================================================
+    const payload = jwt.verify(refreshToken, process.env.JWT_SECRET);
+
+    //= Find the user of the token ==================================================
+    let user = await User.findById(payload?.userId);
+
+    //= If payload userId is altered and user not found with the right refersh token & user doesn't have the access token comming in req? :send error ==================================================
+    if (!user || !user.accessTokens.includes(accessToken))
+      return res.status(403).json(new ApiError([`Forbidden!`]));
+
+    //= Remove the expired access token  ==================================================
+    const filteredAccessTokens = user.accessTokens.filter(
+      (token) => token !== accessToken
+    );
+
+    //= Generate a new access token ====================================================================================================
+    const newAccessToken = generateToken(
+      { userId: user.id },
+      { expiresIn: ACCESS_TOKEN_AGE }
+    );
+
+    //= Add new access token into the filtered tokens ====================================================================================================
+    filteredAccessTokens.push(newAccessToken);
+
+    //#region If refresh token is about to expire ====================================================================================================
+    // Expiration time in seconds since Unix epoch
+    const expirationTimeInSeconds = payload.exp;
+
+    // Current time in seconds since Unix epoch
+    const currentTimeInSeconds = Math.floor(Date.now() / 1000);
+
+    // Set a threshold (e.g., 5 minutes) for considering the token as "about to expire"
+    const thresholdInSeconds = 5 * 60;
+
+    // Check if the token is about to expire
+    if (expirationTimeInSeconds - currentTimeInSeconds < thresholdInSeconds) {
+      console.log("The JWT token is about to expire soon.");
+
+      user.refreshToken = generateToken(
+        { userId: user.id },
+        { expiresIn: REFRESH_TOKEN_AGE }
+      );
+    }
+    //#endregion If refresh token is about to expire =================================================================================================
+
+    //= Updating accessTokens of the user in the DB ====================================================================================================
+    user = await User.findByIdAndUpdate(
+      user.id,
+      {
+        accessTokens: filteredAccessTokens,
+        refreshToken: user.refreshToken,
+      },
+      {
+        new: true,
+      }
+    );
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          { newAccessToken, refreshToken: user.refreshToken },
+          "Token refresh successfull."
+        )
+      );
+  } catch (error) {
+    // console.log("🚀 ~ file: user.controller.js:673 ~ handleRefreshToken ~ error:", JSON.stringify(error))
+    if (error.name === "TokenExpiredError") {
+      try {
+        const user = await User.findOne({ refreshToken });
+
+        if (!user) return res.status(403).json(new ApiError([`Forbidden!`]));
+
+        //= Just remove all the accessTokens and refreshToken ==================================================
+        await User.findByIdAndUpdate(
+          user.id,
+          {
+            accessTokens: [],
+            refreshToken: null,
+          },
+          {
+            new: true,
+          }
+        );
+
+        return res
+          .status(400)
+          .json(new ApiResponse(null, "Kindly login again."));
+      } catch (err) {
+        error = err;
+      }
+    }
+
+    console.log(
+      "🚀 ~ file: user.controller.js:693 ~ handleRefreshToken ~ error:",
+      error
+    );
+    return res.status(500).json(new ApiError([error.message]));
+  }
+}
+
+async function sendUserDetails(req, res) {
+  try {
+    //= Find the user in DB ==================================================
+    const user = await User.findById(req.user.id);
+
+    const userRes = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      roles: user.roles,
+      isVerified: user.isVerified,
+      isEnabled: user.isEnabled,
+      provider: user.provider,
+      lastLogin: mylastlogin,
+    };
+
+    return res
+      .status(200)
+      .json(new ApiResponse(userRes, "User created successfully!"));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json(new ApiError([error.message]));
+  }
+}
+
 module.exports = {
   registerUser,
   verifyUser,
@@ -652,4 +769,6 @@ module.exports = {
   verifyOTPAndRegisterMobileUser,
   updateMobileUser,
   handleGoogleCallback,
+  handleRefreshToken,
+  sendUserDetails,
 };

@@ -16,6 +16,7 @@ const passwordValidationChain = () =>
 const mobileNoValidationChain = () =>
   body("mobileNo")
     .trim()
+    .optional()
     .isMobilePhone("en-IN")
     .withMessage("Not a valid mobile number.");
 

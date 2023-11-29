@@ -8,7 +8,7 @@ async function authenticate(req, res, next) {
 
     if (!authHeader) {
       return res
-        .status(403)
+        .status(400)
         .json(new ApiError([`Authorization header not found.`]));
     }
 
@@ -21,12 +21,12 @@ async function authenticate(req, res, next) {
     }
 
     if (token === "null" || !token)
-      return res.status(403).json(new ApiError([`Token not found.`]));
+      return res.status(404).json(new ApiError([`Token not found.`]));
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await User.findById(payload?.userId);
-    if (!user) return res.status(403).json(new ApiError(["User not found."]));
+    if (!user) return res.status(404).json(new ApiError(["User not found."]));
 
     req.token = token;
     req.user = user;

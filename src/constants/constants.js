@@ -3,7 +3,7 @@ const ROLES = {
   user: "User",
 };
 const ACCESS_TOKEN_AGE = "1d";
-const REFRESH_TOKEN_AGE = "1m";
+const REFRESH_TOKEN_AGE = "30d";
 const EMAIL_VERIFICATION_TOKEN_AGE = "1d";
 const EMAIL_PASSWORD_RESET_TOKEN_AGE = "1d";
 // const COOKIE_AGE = 1000 * 60 * 60 * 24;
